@@ -8,4 +8,6 @@ outputs/real/
 outputs/demo/
 *.lock
 шаблон.docx
-текст.docxdata/
+текст.docx
+data/
+*.docx
