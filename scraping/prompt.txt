@@ -1,0 +1,37 @@
+Напиши userscript для Tampermonkey на сайт https://www.dns-shop.ru/*.
+Цель — собрать датасет карточек товаров для ВКР (описание + характеристики).
+
+Требования:
+1. Простой код: одна IIFE, мало функций, без библиотек и лишних настроек.
+   Константы вверху: TARGET = 500 (сколько карточек нужно),
+   MIN_DESC = 200 (минимальная длина описания), MAX_TRIES = 10,
+   PAUSE = [2000, 4000] мс.
+2. Хранение в localStorage (JSON): dns_links — массив ссылок,
+   dns_cards — объект {url: карточка}, dns_skipped — массив ссылок,
+   dns_auto — флаг автообхода.
+3. Страница выдачи/каталога (не /product/): собирать ссылки на товары
+   из `.catalog-product a[href*="/product/"]`, оставлять только вида
+   /product/<hex>/<slug>/, отрезать ?query и #hash, без дублей.
+4. Карточка товара (/product/<hex>/): раз в 1.5 с пытаться сохранить:
+   - если блок `.product-card__characteristics` ещё placeholder
+     (класс `product-card__characteristics_placeholder`) — прокрутить к нему;
+   - если есть `.product-characteristics_collapsed` — нажать
+     `.product-characteristics__expand` («Все характеристики») и подождать;
+   - описание: innerText `.product-card-description__text-description`;
+   - характеристики: каждая `.product-characteristics__spec` →
+     {`.product-characteristics__spec-title`: `.product-characteristics__spec-value`};
+   - ещё code (`.product-card-top__code`), title (`.product-card-top__title`),
+     category (ссылки `.product-card__breadcrumbs a` без «Каталог», через « / »).
+   Если товара нет в наличии (в блоках `.product-card-top` или `.product-buy`
+   есть «нет в наличии» / «нет в продаже» / «снят с продажи» / «закончился» /
+   «временно отсутствует») — сразу добавить ссылку в dns_skipped, не сохранять.
+   Сохранять, если описание ≥ MIN_DESC и есть характеристики.
+   После MAX_TRIES неудачных попыток — добавить ссылку в dns_skipped.
+5. Режим «Авто»: после сохранения/пропуска через случайную паузу PAUSE
+   открыть СЛУЧАЙНУЮ ссылку из dns_links, которой нет ни в карточках,
+   ни в пропущенных (не по порядку списка). Остановиться на TARGET.
+6. Панель в правом нижнем углу: «DNS cards N/TARGET», число ссылок
+   и пропущенных, статус ожидания; кнопки «▶ Авто / ⏸ Стоп»,
+   «JSON» (скачать массив карточек как dns_cards_<N>.json),
+   «Сброс» (с confirm, очищает все ключи).
+7. Комментарии в коде — короткие, по-русски.
