@@ -1,0 +1,67 @@
+=== 2026-10-16 00:50  python bootstrap.py pilot all
+pilot: разница micro-F1 (для H2 нужно не меньше +0,02 и интервал без 0; для H3 смотрим, не хуже ли -0,02)
+qwen35_9b        H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.070  [+0.050; +0.089]
+qwen35_9b        H2 few-shot минус zero-shot, схема
+  micro-F1         +0.069  [+0.049; +0.089]
+qwen35_9b        H3 схема минус свободно, zero-shot
+  micro-F1         -0.002  [-0.013; +0.008]  (интервал содержит 0)
+qwen35_9b        H3 схема минус свободно, few-shot
+  micro-F1         -0.003  [-0.009; +0.000]  (интервал содержит 0)
+gemma4_e4b       H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.079  [+0.056; +0.102]
+gemma4_e4b       H2 few-shot минус zero-shot, схема
+  micro-F1         +0.088  [+0.063; +0.113]
+gemma4_e4b       H3 схема минус свободно, zero-shot
+  micro-F1         -0.006  [-0.020; +0.007]  (интервал содержит 0)
+gemma4_e4b       H3 схема минус свободно, few-shot
+  micro-F1         +0.002  [-0.010; +0.014]  (интервал содержит 0)
+llama31_8b       H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.090  [+0.057; +0.124]
+llama31_8b       H2 few-shot минус zero-shot, схема
+  micro-F1         +0.064  [+0.036; +0.093]
+llama31_8b       H3 схема минус свободно, zero-shot
+  micro-F1         +0.034  [+0.011; +0.057]
+llama31_8b       H3 схема минус свободно, few-shot
+  micro-F1         +0.009  [+0.000; +0.025]  (интервал содержит 0)
+ministral3_8b    H2 few-shot минус zero-shot, свободно
+  micro-F1         -0.013  [-0.034; +0.007]  (интервал содержит 0)
+ministral3_8b    H2 few-shot минус zero-shot, схема
+  micro-F1         -0.011  [-0.030; +0.007]  (интервал содержит 0)
+ministral3_8b    H3 схема минус свободно, zero-shot
+  micro-F1         +0.000  [-0.011; +0.012]  (интервал содержит 0)
+ministral3_8b    H3 схема минус свободно, few-shot
+  micro-F1         +0.003  [-0.004; +0.010]  (интервал содержит 0)
+phi4_mini        H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.429  [+0.385; +0.472]
+phi4_mini        H2 few-shot минус zero-shot, схема
+  micro-F1         +0.304  [+0.265; +0.343]
+phi4_mini        H3 схема минус свободно, zero-shot
+  micro-F1         +0.124  [+0.101; +0.148]
+phi4_mini        H3 схема минус свободно, few-shot
+  micro-F1         +0.000  [+0.000; +0.000]  (интервал содержит 0)
+gigachat31_10b   H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.149  [+0.123; +0.179]
+gigachat31_10b   H2 few-shot минус zero-shot, схема
+  micro-F1         +0.134  [+0.110; +0.159]
+gigachat31_10b   H3 схема минус свободно, zero-shot
+  micro-F1         +0.014  [-0.004; +0.035]  (интервал содержит 0)
+gigachat31_10b   H3 схема минус свободно, few-shot
+  micro-F1         -0.001  [-0.004; +0.000]  (интервал содержит 0)
+tlite21_8b       H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.188  [+0.155; +0.222]
+tlite21_8b       H2 few-shot минус zero-shot, схема
+  micro-F1         +0.179  [+0.147; +0.215]
+tlite21_8b       H3 схема минус свободно, zero-shot
+  micro-F1         +0.008  [-0.012; +0.029]  (интервал содержит 0)
+tlite21_8b       H3 схема минус свободно, few-shot
+  micro-F1         +0.000  [+0.000; +0.000]  (интервал содержит 0)
+yandex5_lite_8b  H2 few-shot минус zero-shot, свободно
+  micro-F1         +0.032  [+0.020; +0.045]
+yandex5_lite_8b  H2 few-shot минус zero-shot, схема
+  micro-F1         +0.021  [+0.006; +0.035]
+yandex5_lite_8b  H3 схема минус свободно, zero-shot
+  micro-F1         +0.012  [+0.003; +0.022]
+yandex5_lite_8b  H3 схема минус свободно, few-shot
+  micro-F1         +0.000  [-0.006; +0.008]  (интервал содержит 0)
+
