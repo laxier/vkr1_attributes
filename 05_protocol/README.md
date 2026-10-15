@@ -49,5 +49,5 @@
 ## Если что-то не работает
 - **Мусор или `nan` в ответе** (бывает у Gemma в fp16): в ячейке загрузки поставь `bnb_4bit_compute_dtype=torch.float32`.
 - **Не грузится как `AutoModelForCausalLM`**: ноутбук сам пробует `AutoModelForImageTextToText`.
-- **Ошибка в JSON-схеме**: поставь `SCHEMA = False` и сравни; если модель без схемы отвечает нормально, дело в `lm-format-enforcer` на этой модели.
+- **Ошибка в JSON-схеме**: поставь `SCHEMA = False` и сравни; если модель без схемы отвечает нормально, дело в `xgrammar` на этой модели. Схема ограничивает ответ через `xgrammar`, а не через `lm-format-enforcer`: тот не работает с `transformers` версии 5 (ошибка импорта `PreTrainedTokenizerBase`).
 - **Не хватает памяти**: уменьши `K_SHOT` или перезапусти среду.
