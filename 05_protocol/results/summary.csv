@@ -1,0 +1,9 @@
+split,model,mode,schema,n,hf_id,k_shot,дата,micro_f1_строго,micro_f1_норм,macro_f1_норм,exact_норм,ложные_на_null,невалидных,сек_среднее,сек_p95,токенов_среднее,память_пик_ГБ,transformers,gpu
+real_val,qwen35_9b,few-shot,True,5,Qwen/Qwen3.5-9B,5,2026-10-15 11:50,0.903,0.903,0.921,0.6,0.05,0.0,20.63,23.25,200.0,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+real_val,qwen35_9b,zero-shot,True,5,Qwen/Qwen3.5-9B,0,2026-10-15 11:52,0.833,0.833,0.847,0.2,0.3,0.0,19.48,19.86,200.0,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+real_val,qwen35_9b,zero-shot,False,5,Qwen/Qwen3.5-9B,0,2026-10-15 11:53,0.833,0.833,0.847,0.2,0.3,0.0,8.73,8.95,89.0,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+real_val,qwen35_9b,few-shot,False,5,Qwen/Qwen3.5-9B,5,2026-10-15 11:54,0.903,0.903,0.921,0.6,0.05,0.0,6.82,7.42,67.4,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,qwen35_9b,few-shot,False,100,Qwen/Qwen3.5-9B,5,2026-10-15 12:07,0.899,0.905,0.912,0.56,0.114,0.0,6.76,7.53,67.7,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,qwen35_9b,few-shot,True,100,Qwen/Qwen3.5-9B,5,2026-10-15 13:34,0.896,0.902,0.9,0.56,0.114,0.0,8.43,9.55,71.4,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,qwen35_9b,zero-shot,True,100,Qwen/Qwen3.5-9B,0,2026-10-15 13:49,0.808,0.832,0.835,0.21,0.288,0.0,7.8,8.56,66.2,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,qwen35_9b,zero-shot,False,100,Qwen/Qwen3.5-9B,0,2026-10-15 14:09,0.794,0.835,0.836,0.21,0.281,0.0,9.33,10.2,84.4,8.8,5.19.0,NVIDIA A100-SXM4-40GB
