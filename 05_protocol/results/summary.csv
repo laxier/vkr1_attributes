@@ -7,3 +7,7 @@ pilot,qwen35_9b,few-shot,False,100,Qwen/Qwen3.5-9B,5,2026-10-15 12:07,0.899,0.90
 pilot,qwen35_9b,few-shot,True,100,Qwen/Qwen3.5-9B,5,2026-10-15 13:34,0.896,0.902,0.9,0.56,0.114,0.0,8.43,9.55,71.4,8.8,5.19.0,NVIDIA A100-SXM4-40GB
 pilot,qwen35_9b,zero-shot,True,100,Qwen/Qwen3.5-9B,0,2026-10-15 13:49,0.808,0.832,0.835,0.21,0.288,0.0,7.8,8.56,66.2,8.8,5.19.0,NVIDIA A100-SXM4-40GB
 pilot,qwen35_9b,zero-shot,False,100,Qwen/Qwen3.5-9B,0,2026-10-15 14:09,0.794,0.835,0.836,0.21,0.281,0.0,9.33,10.2,84.4,8.8,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,gemma4_e4b,zero-shot,False,100,google/gemma-4-E4B-it,0,2026-10-15 14:33,0.841,0.847,0.826,0.23,0.223,0.0,12.82,14.33,82.7,9.7,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,gemma4_e4b,few-shot,True,100,google/gemma-4-E4B-it,5,2026-10-15 14:53,0.922,0.928,0.894,0.69,0.075,0.0,10.07,11.21,62.6,19.5,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,gemma4_e4b,few-shot,False,100,google/gemma-4-E4B-it,5,2026-10-15 14:55,0.92,0.926,0.9,0.65,0.094,0.0,12.22,13.95,76.5,19.1,5.19.0,NVIDIA A100-SXM4-40GB
+pilot,gemma4_e4b,zero-shot,True,100,google/gemma-4-E4B-it,0,2026-10-15 15:05,0.835,0.84,0.822,0.2,0.231,0.0,10.07,11.47,64.0,19.5,5.19.0,NVIDIA A100-SXM4-40GB
