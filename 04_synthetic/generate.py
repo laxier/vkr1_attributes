@@ -17,6 +17,9 @@ from dotenv import load_dotenv
 load_dotenv("../.env")   # кладёт ANTHROPIC_API_KEY в окружение, anthropic его подхватит сам
 
 MODEL = "claude-sonnet-5-5"
+# размышление выключаем, чтобы условия были одинаковыми и не оплачивались лишние токены;
+# выключатель у моделей разный (Sonnet 5.5 не принимает "disabled")
+THINKING = {"claude-sonnet-5-5": {"type": "between_tools"}, "claude-haiku-5-5": {"type": "disabled"}}
 EDA = "../03_eda/outputs/dns_cards_500"          # gold_pairs.csv и split_ids.json
 CARDS = "../data/dns_cards_500.json"
 N_STYLE = 3                                       # сколько реальных описаний показать в промпте
