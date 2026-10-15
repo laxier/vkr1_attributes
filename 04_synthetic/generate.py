@@ -10,7 +10,7 @@
 Эталон известен по построению, потом проверяется теми же правилами, что и на реальных карточках.
 Из реальных данных берётся только пилот (100 карточек): стиль, частота упоминаний и значения.
 """
-import hashlib, json, os, random, re, sys
+import hashlib, json, os, random, re, sys, time
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -155,6 +155,8 @@ def main(name, n, seed):
     path = f"../data/synthetic/{name}.jsonl"
     done = sum(1 for _ in open(path, encoding="utf-8")) if os.path.exists(path) else 0
     bad = 0
+    calls = 0
+    spent = 0     # секунд на запросы к API
     attempt = 0   # номер попытки для текущей записи: после брака параметры другие
     while done < n:
         rng = make_rng(seed, done, attempt)
@@ -162,19 +164,25 @@ def main(name, n, seed):
         fmt = {a: make_format(rng, a, v) for a, v in gold.items() if v}
         style = rng.sample(real, N_STYLE)
         length = min(max(50 * round(len(rng.choice(real)) / 50), 250), 1300)   # длина как у случайного реального описания
+        t0 = time.time()
         text = ask(client, make_prompt(gold, fmt, style, rng.choice(brands), rng.choice(STARTS), length))
+        sec = time.time() - t0
+        spent += sec
+        calls += 1
         reason = check(text, gold) or ("скопирована фраза из образца" if any(grams(text) & grams(s) for s in style) else "")
         if reason:
             bad += 1
             attempt += 1
-            print("отбраковано:", bad, "| принято:", done, "|", reason)
+            print("отбраковано:", bad, "| принято:", done, "|", f"{sec:.1f} с |", reason)
             continue
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps({"description": text, "gold": gold, "формат": fmt}, ensure_ascii=False) + "\n")
         done += 1
         attempt = 0
-        print(done, "/", n)
+        print(done, "/", n, f"| {sec:.1f} с")
     print("готово:", path, "| отбраковано:", bad)
+    if calls:
+        print(f"запросов: {calls} | в среднем {spent / calls:.1f} с | всего {spent / 60:.1f} мин")
 
 if __name__ == "__main__":
     main(sys.argv[1], int(sys.argv[2]), int(sys.argv[3]))
