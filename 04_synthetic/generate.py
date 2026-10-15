@@ -20,6 +20,8 @@ MODEL = "sonnet"                                  # какой моделью г
 
 EDA = "../03_eda/outputs/dns_cards_500"          # gold_pairs.csv и split_ids.json
 CARDS = "../data/dns_cards_500.json"
+STARTS = ["с названия бренда и модели", "с назначения монитора (игры, работа, дизайн)", "с самой заметной особенности",
+          "с короткой фразы-призыва", "с описания внешнего вида и корпуса"]   # чтобы описания начинались по-разному
 N_STYLE = 3                                       # сколько реальных описаний показать в промпте
 ATTRS = ["диагональ", "разрешение", "частота", "тип матрицы", "яркость", "контрастность", "изогнутость"]
 
@@ -56,12 +58,13 @@ def found_in_text(attr, text):
     return found
 
 def check(text, gold):
-    """значение из эталона названо в тексте (и только оно), для null атрибут не назван"""
+    """пустая строка, если всё в порядке; иначе что не так"""
     for attr in ATTRS:
         found = found_in_text(attr, text)
-        if found != ({gold[attr]} if gold[attr] else set()):
-            return False
-    return True
+        want = {gold[attr]} if gold[attr] else set()
+        if found != want:
+            return f"{attr}: нужно {sorted(want) or 'не называть'}, в тексте {sorted(found) or 'нет'}"
+    return ""
 
 # --- что просим написать ---
 def make_gold(rng, pool, p):
@@ -79,22 +82,23 @@ def make_format(rng, attr, v):
         w, h = v.split("x")
         return f"{w}{rng.choice(['x', 'x', 'x', 'х', '×'])}{h}"
     if attr == "частота":
-        return rng.choice([f"{v} Гц", f"{v} Гц", f"{v}Гц", f"{v} герц"])
+        return rng.choice([f"{v} Гц", f"{v} Гц", f"{v}Гц"])
     if attr == "яркость":
         return rng.choice([f"{v} кд/м²", f"{v} нит", f"{v} cd/m2"])
     if attr == "контрастность":
-        return rng.choice([f"{v}:1", f"{v}:1", f"{v} к 1"])
+        return f"{v}:1"
     if attr == "изогнутость":
         return "изогнутый" if v == "да" else "плоский"
     return v   # тип матрицы пишем как есть
 
-def make_prompt(gold, fmt, style):
+def make_prompt(gold, fmt, style, brand, start, length):
     must = "\n".join(f"- {a}: {fmt[a]}" for a in ATTRS if gold[a])
     never = ", ".join(a for a in ATTRS if not gold[a]) or "нет"
     examples = "\n\n".join(f"Пример {i + 1}:\n{t}" for i, t in enumerate(style))
     return f"""Напиши описание монитора для карточки товара интернет-магазина электроники, по-русски.
-Бренд и модель придумай сам (можно правдоподобные, но не копируй реальные описания).
-Объём 500-1200 символов, связный текст в стиле примеров ниже: маркетинговые фразы, порты, подсветка, эргономика, режимы и т.п.
+Бренд: {brand}. Название модели придумай сам (в стиле артикулов, например «27G2» или «XG273QZ»).
+Начни описание {start}.
+Объём около {length} символов (не больше чем на 15% длиннее), связный текст в стиле примеров ниже: маркетинговые фразы, порты, подсветка, эргономика, режимы и т.п.
 
 В тексте обязательно назови эти характеристики, именно в такой записи:
 {must}
@@ -139,7 +143,9 @@ def main(name, n, seed):
     pairs = pairs[pairs["url"].isin(pilot)]
     p = {a: pairs[pairs["атрибут"] == a]["эталон"].notna().mean() for a in ATTRS}
     pool = {a: pairs[pairs["атрибут"] == a]["эталон"].dropna().astype(str).tolist() for a in ATTRS}
-    real = [c["description"] for c in json.load(open(CARDS, encoding="utf-8")) if c["url"] in pilot]
+    cards = [c for c in json.load(open(CARDS, encoding="utf-8")) if c["url"] in pilot]
+    real = [c["description"] for c in cards]
+    brands = sorted({c["category"].split(" / ")[-1] for c in cards})
 
     os.makedirs("../data/synthetic", exist_ok=True)
     path = f"../data/synthetic/{name}.jsonl"
@@ -149,11 +155,12 @@ def main(name, n, seed):
         gold = make_gold(rng, pool, p)
         fmt = {a: make_format(rng, a, v) for a, v in gold.items() if v}
         style = rng.sample(real, N_STYLE)
-        text = ask(client, make_prompt(gold, fmt, style))
-        copied = any(grams(text) & grams(s) for s in style)
-        if not check(text, gold) or copied:
+        length = min(max(50 * round(len(rng.choice(real)) / 50), 250), 1300)   # длина как у случайного реального описания
+        text = ask(client, make_prompt(gold, fmt, style, rng.choice(brands), rng.choice(STARTS), length))
+        reason = check(text, gold) or ("скопирована фраза из образца" if any(grams(text) & grams(s) for s in style) else "")
+        if reason:
             bad += 1
-            print("отбраковано:", bad, "| принято:", done)
+            print("отбраковано:", bad, "| принято:", done, "|", reason)
             continue
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps({"description": text, "gold": gold, "формат": fmt}, ensure_ascii=False) + "\n")
