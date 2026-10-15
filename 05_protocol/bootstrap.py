@@ -1,15 +1,17 @@
 """Парный bootstrap по карточкам: интервалы для запусков и для разницы двух запусков.
 
-Запуск (из папки 05_protocol), запуск задаётся как модель/режим/формат (формат: free или schema):
+Запуск (из папки со скриптом), запуск задаётся как модель/режим/формат (формат: free или schema):
     python bootstrap.py pilot gemma4_e4b/few-shot/schema                    # интервал одного запуска
     python bootstrap.py real_val gemma4_e4b/few-shot/schema qwen35_9b/few-shot/schema   # разница двух
     python bootstrap.py real_val all                                        # H2 и H3 для всех моделей
+    python bootstrap.py real_val md                                         # все таблицы в results/bootstrap_real_val.md
 Последним аргументом можно дать groups.json {"id карточки": "группа"}: тогда пересэмплируются
 группы почти-дубликатов целиком, а не отдельные карточки.
 
 Метрики: micro-F1 с нормализацией и доля ложных значений на null.
 4000 повторов, seed 0, интервал 95%. Разница считается на одних и тех же карточках.
-Каждый удавшийся запуск дописывается в results/bootstrap_log.txt (дата, команда, результат).
+Результаты берутся из results/ папки этапа: pilot — 06_pilot, real_val и heldout — 07_main_run.
+Каждый удавшийся запуск дописывается в results/bootstrap_log.txt той же папки (дата, команда, результат).
 """
 import json, re, sys, os, time, io, contextlib
 import numpy as np
@@ -18,6 +20,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ATTRS = ["диагональ", "разрешение", "частота", "тип матрицы", "яркость", "контрастность", "изогнутость"]
 MODELS = ["qwen35_9b", "gemma4_e4b", "llama31_8b", "ministral3_8b", "phi4_mini", "gigachat31_10b", "tlite21_8b", "yandex5_lite_8b"]
 B = 4000
+STAGE = {"pilot": "06_pilot", "real_val": "07_main_run", "heldout": "07_main_run", "real_test": "09_final"}
+
+
+def res_dir(split):
+    """папка results/ этапа, где лежат прогоны этого набора (если её нет, results/ рядом со скриптом)"""
+    d = os.path.normpath(os.path.join(HERE, "..", STAGE.get(split, ""), "results"))
+    return d if os.path.isdir(d) else f"{HERE}/results"
+
 
 # norm() берём из ноутбука, чтобы метрики совпадали с summary.csv
 nb = json.load(open(f"{HERE}/05_run_model.ipynb", encoding="utf-8"))
@@ -28,7 +38,7 @@ exec([c for c in code if "def parse(raw)" in c][0])
 def per_card(split, run):
     """по каждой карточке: tp, fp, fn, число ложных значений на null, число null в эталоне"""
     model, mode, fmt = run.split("/")
-    path = f"{HERE}/results/{split}__{model}__{mode}__{fmt}.jsonl"
+    path = f"{res_dir(split)}/{split}__{model}__{mode}__{fmt}.jsonl"
     if not os.path.exists(path):
         sys.exit(f"Нет результатов для {run} на наборе {split}: файла {os.path.basename(path)} нет в results/. Этот набор ещё не прогоняли.")
     rows = {}
@@ -96,6 +106,71 @@ def compare(split, runs, groups, quiet=False):
             show("micro-F1", p_f, d_f); show("ложные на null", p_fn, d_fn)
         return p_f, d_f
 
+def boot_weights(ids, groups):
+    """веса карточек в каждом повторе bootstrap (те же, что в compare) и число групп"""
+    gid = np.array([groups[i] if groups else str(k) for k, i in enumerate(ids)])
+    _, gid = np.unique(gid, return_inverse=True)
+    G = gid.max() + 1
+    draw = np.random.default_rng(0).integers(0, G, (B, G))
+    return np.stack([np.bincount(d, minlength=G) for d in draw])[:, gid], G
+
+
+def report_md(split, groups):
+    """все интервалы и разности набора в один md-файл results/bootstrap_<набор>.md"""
+    modes = [("zero-shot", "free"), ("zero-shot", "schema"), ("few-shot", "free"), ("few-shot", "schema")]
+    names = ["zero-shot, свободно", "zero-shot, схема", "few-shot, свободно", "few-shot, схема"]
+    have = [f"{m}/{a}/{b}" for m in MODELS for a, b in modes
+            if os.path.exists(f"{res_dir(split)}/{split}__{m}__{a}__{b}.jsonl")]
+    if not have:
+        sys.exit(f"Набор {split} ещё не прогоняли: в results/ нет файлов {split}__*.jsonl.")
+    data = {r: per_card(split, r) for r in have}
+    ids = data[have[0]][0]
+    w, G = boot_weights(ids, groups)
+    one = np.ones((1, len(ids)))
+    M = {}
+    for r in have:
+        f, fn = metrics(w, data[r][1])
+        f0, fn0 = (m[0] for m in metrics(one, data[r][1]))
+        M[r] = (f0, f, fn0, fn)
+    num = lambda x: f"{x:.3f}".replace(".", ",")
+    cell = lambda p, b: f"{num(p)} [{num(np.percentile(b, 2.5))}; {num(np.percentile(b, 97.5))}]"
+    L = [f"# Bootstrap, {split}", "",
+         f"{len(ids)} карточек, {G} групп, {B} повторов, начальное значение 0, интервал 95%. Создано скриптом bootstrap.py.", ""]
+
+    def table(title, k):
+        L.extend([f"## {title}", "", "| модель | " + " | ".join(names) + " |", "|---|" + "---|" * 4])
+        for m in MODELS:
+            row = [cell(M[f"{m}/{a}/{b}"][k], M[f"{m}/{a}/{b}"][k + 1]) if f"{m}/{a}/{b}" in M else "—" for a, b in modes]
+            L.append(f"| {m} | " + " | ".join(row) + " |")
+        L.append("")
+
+    table("micro-F1 (норм)", 0)
+    table("Ложные значения на null", 2)
+
+    def diff(title, rule, pairs, ok):
+        L.extend([f"## {title}", "", rule, "", "| модель | " + " | ".join(t for t, _, _ in pairs) + " |", "|---|" + "---|" * len(pairs)])
+        for m in MODELS:
+            row = []
+            for _, a, b in pairs:
+                A, Bb = f"{m}/{a}", f"{m}/{b}"
+                if A in M and Bb in M:
+                    p, d = M[A][0] - M[Bb][0], M[A][1] - M[Bb][1]
+                    row.append(f"{cell(p, d)} {ok(p, np.percentile(d, 2.5))}")
+                else:
+                    row.append("—")
+            L.append(f"| {m} | " + " | ".join(row) + " |")
+        L.append("")
+
+    diff("H2: few-shot минус zero-shot", "«да», если разность не меньше +0,02 и интервал не содержит 0.",
+         [("свободно", "few-shot/free", "zero-shot/free"), ("схема", "few-shot/schema", "zero-shot/schema")],
+         lambda p, lo: "да" if p >= 0.02 and lo > 0 else "нет")
+    diff("H3: схема минус свободный формат", "«в допуске», если потеря micro-F1 не больше 0,02.",
+         [("zero-shot", "zero-shot/schema", "zero-shot/free"), ("few-shot", "few-shot/schema", "few-shot/free")],
+         lambda p, lo: "в допуске" if p >= -0.02 else "потеря больше 0,02")
+    path = f"{res_dir(split)}/bootstrap_{split}.md"
+    open(path, "w", encoding="utf-8").write("\n".join(L))
+    return path
+
 
 def main():
     split = sys.argv[1]
@@ -103,8 +178,10 @@ def main():
     gf = [a for a in args if a.endswith(".json")]
     groups = json.load(open(gf[0], encoding="utf-8")) if gf else None
     runs = [a for a in args if not a.endswith(".json")]
-    if runs == ["all"]:
-        if not any(f.startswith(split + "__") for f in os.listdir(f"{HERE}/results")):
+    if runs == ["md"]:
+        print("Таблицы записаны в", report_md(split, groups))
+    elif runs == ["all"]:
+        if not any(f.startswith(split + "__") for f in os.listdir(res_dir(split))):
             sys.exit(f"Набор {split} ещё не прогоняли: в results/ нет файлов {split}__*.jsonl.")
         print(f"{split}: разница micro-F1 (для H2 нужно не меньше +0,02 и интервал без 0; для H3 смотрим, не хуже ли -0,02)")
         for m in MODELS:
@@ -113,7 +190,7 @@ def main():
                                 ("H3 схема минус свободно, zero-shot", "zero-shot/schema", "zero-shot/free"),
                                 ("H3 схема минус свободно, few-shot", "few-shot/schema", "few-shot/free")]:
                 A, Bb = f"{m}/{a}", f"{m}/{b}"
-                if not all(os.path.exists(f"{HERE}/results/{split}__{r.replace('/', '__')}.jsonl") for r in (A, Bb)):
+                if not all(os.path.exists(f"{res_dir(split)}/{split}__{r.replace('/', '__')}.jsonl") for r in (A, Bb)):
                     continue
                 print(f"{m:16s} {title}")
                 p, d = compare(split, [A, Bb], groups, quiet=True)
@@ -134,5 +211,5 @@ if __name__ == "__main__":
     with contextlib.redirect_stdout(Tee(sys.stdout, buf)):
         main()
     # в журнал попадают только удавшиеся запуски (при ошибке sys.exit пропускает эту запись)
-    with open(f"{HERE}/results/bootstrap_log.txt", "a", encoding="utf-8") as f:
+    with open(f"{res_dir(sys.argv[1])}/bootstrap_log.txt", "a", encoding="utf-8") as f:
         f.write(f"=== {time.strftime('%Y-%m-%d %H:%M')}  python bootstrap.py {' '.join(sys.argv[1:])}\n{buf.getvalue()}\n")
