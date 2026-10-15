@@ -16,10 +16,8 @@ from dotenv import load_dotenv
 
 load_dotenv("../.env")   # кладёт ANTHROPIC_API_KEY в окружение, anthropic его подхватит сам
 
-MODEL = "claude-sonnet-5-5"
-# размышление выключаем, чтобы условия были одинаковыми и не оплачивались лишние токены;
-# выключатель у моделей разный (Sonnet 5.5 не принимает "disabled")
-THINKING = {"claude-sonnet-5-5": {"type": "between_tools"}, "claude-haiku-5-5": {"type": "disabled"}}
+MODEL = "sonnet"                                  # какой моделью генерировать: "sonnet" или "haiku"
+
 EDA = "../03_eda/outputs/dns_cards_500"          # gold_pairs.csv и split_ids.json
 CARDS = "../data/dns_cards_500.json"
 N_STYLE = 3                                       # сколько реальных описаний показать в промпте
@@ -110,9 +108,21 @@ def make_prompt(gold, fmt, style):
 
 Ответь только текстом описания, без заголовка и пояснений."""
 
-def ask(client, prompt):
-    r = client.messages.create(model=MODEL, max_tokens=1500, messages=[{"role": "user", "content": prompt}])
-    return r.content[0].text.strip()
+# размышление выключаем, чтобы условия были одинаковыми и не оплачивались лишние токены.
+# Sonnet 5.5 не принимает "disabled", поэтому у моделей разные функции.
+def ask_sonnet(client, prompt):
+    r = client.messages.create(model="claude-sonnet-5-5", max_tokens=2000, thinking={"type": "between_tools"},
+                               messages=[{"role": "user", "content": prompt}])
+    print("токены: вход", r.usage.input_tokens, "выход", r.usage.output_tokens)   # для оценки затрат
+    return "".join(b.text for b in r.content if b.type == "text").strip()
+
+def ask_haiku(client, prompt):
+    r = client.messages.create(model="claude-haiku-5-5", max_tokens=2000, thinking={"type": "disabled"},
+                               messages=[{"role": "user", "content": prompt}])
+    print("токены: вход", r.usage.input_tokens, "выход", r.usage.output_tokens)
+    return "".join(b.text for b in r.content if b.type == "text").strip()
+
+ask = ask_sonnet if MODEL == "sonnet" else ask_haiku
 
 def grams(text, n=6):
     w = text.lower().split()
