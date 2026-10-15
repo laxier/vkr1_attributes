@@ -1,7 +1,7 @@
 """Генерация синтетических описаний мониторов через Claude.
 
 Запуск (из папки 04_synthetic/):
-    export ANTHROPIC_API_KEY=...
+    ключ лежит в ../.env (строка ANTHROPIC_API_KEY=...), файл в .gitignore
     python generate.py fewshot 20 1      # имя набора, сколько штук, seed
     python generate.py heldout 80 2
     python generate.py train 2000 3
@@ -12,6 +12,9 @@
 """
 import json, os, random, re, sys
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv("../.env")   # кладёт ANTHROPIC_API_KEY в окружение, anthropic его подхватит сам
 
 MODEL = "claude-sonnet-5-5"
 EDA = "../03_eda/outputs/dns_cards_500"          # gold_pairs.csv и split_ids.json

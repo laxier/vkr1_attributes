@@ -16,9 +16,14 @@
 
 ## Запуск
 
+Ключ лежит в `.env` в корне репозитория (файл в `.gitignore`):
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
 ```bash
-pip install anthropic
-export ANTHROPIC_API_KEY=...
+pip install -r ../requirements.txt
 cd 04_synthetic
 python generate.py fewshot 20 1
 python generate.py heldout 80 2
