@@ -10,7 +10,7 @@
 Эталон известен по построению, потом проверяется теми же правилами, что и на реальных карточках.
 Из реальных данных берётся только пилот (100 карточек): стиль, частота упоминаний и значения.
 """
-import json, os, random, re, sys
+import hashlib, json, os, random, re, sys
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -132,10 +132,14 @@ def grams(text, n=6):
     w = text.lower().split()
     return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
 
+def make_rng(seed, index, attempt):
+    # свой генератор для каждой записи: параметры зависят только от seed, номера записи и попытки
+    key = f"{seed}:{index}:{attempt}".encode()
+    return random.Random(int.from_bytes(hashlib.sha256(key).digest()[:8], "big"))
+
 def main(name, n, seed):
     import anthropic
     client = anthropic.Anthropic()
-    rng = random.Random(seed)
 
     # только пилот: частоты и значения из gold_pairs, стиль из текстов пилота
     pilot = set(json.load(open(f"{EDA}/split_ids.json"))["pilot"])
@@ -151,7 +155,9 @@ def main(name, n, seed):
     path = f"../data/synthetic/{name}.jsonl"
     done = sum(1 for _ in open(path, encoding="utf-8")) if os.path.exists(path) else 0
     bad = 0
+    attempt = 0   # номер попытки для текущей записи: после брака параметры другие
     while done < n:
+        rng = make_rng(seed, done, attempt)
         gold = make_gold(rng, pool, p)
         fmt = {a: make_format(rng, a, v) for a, v in gold.items() if v}
         style = rng.sample(real, N_STYLE)
@@ -160,11 +166,13 @@ def main(name, n, seed):
         reason = check(text, gold) or ("скопирована фраза из образца" if any(grams(text) & grams(s) for s in style) else "")
         if reason:
             bad += 1
+            attempt += 1
             print("отбраковано:", bad, "| принято:", done, "|", reason)
             continue
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps({"description": text, "gold": gold, "формат": fmt}, ensure_ascii=False) + "\n")
         done += 1
+        attempt = 0
         print(done, "/", n)
     print("готово:", path, "| отбраковано:", bad)
 
