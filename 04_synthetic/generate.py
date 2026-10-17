@@ -5,8 +5,12 @@
     python generate.py fewshot 20 1      # имя набора, сколько штук, seed
     python generate.py heldout 80 2
     python generate.py train 2000 3
+    python generate.py train_names 500 4   # имя на names: разрешение названо словом (Full HD, QHD, 4K)
 
 Результат: ../data/synthetic/<имя>.jsonl, строка = {"description", "gold", "формат"}.
+В наборах names в каждом описании разрешение названо словом: в половине без цифр (эталон null,
+как на реальных карточках), в половине вместе с цифрами (эталон — цифры). Так модель учится
+отличать «Full HD» без цифр от записи цифрами; в train таких карточек без цифр нет совсем.
 Эталон известен по построению, потом проверяется теми же правилами, что и на реальных карточках.
 Из реальных данных берётся только пилот (100 карточек): стиль, частота упоминаний и значения.
 """
@@ -48,6 +52,10 @@ PATTERN = {"диагональ": r'(\d+(?:[.,]\d+)?)\s*-?\s*(?:"|”|″|дюй�
            "контрастность": r"((?:\d{1,3}(?:\s\d{3})+|\d+(?:[.,]\d+)?)\s*(?:m|млн)?)\s*(?::|к|/)\s*1\b",
            "изогнутость": r"(изогнут|curved|плоск)"}
 CURVED = {"изогнут": "да", "curved": "да", "плоск": "нет"}
+# названия разрешения словом и их цифры (для наборов names); варианты записи — как на пилоте
+RES_NAMES = {"1920x1080": ["Full HD", "FullHD", "FHD"], "2560x1440": ["QHD", "WQHD", "2K"],
+             "3840x2160": ["4K", "UHD", "4K UHD"]}
+P_NAME_ONLY = 0.5     # доля описаний, где разрешение названо только словом (эталон null)
 
 def found_in_text(attr, text):
     text = text.lower().replace("ё", "е")
@@ -91,9 +99,16 @@ def make_format(rng, attr, v):
         return "изогнутый" if v == "да" else "плоский"
     return v   # тип матрицы пишем как есть
 
-def make_prompt(gold, fmt, style, brand, start, length):
+def make_prompt(gold, fmt, style, brand, start, length, res_name=None):
     must = "\n".join(f"- {a}: {fmt[a]}" for a in ATTRS if gold[a])
-    never = ", ".join(a for a in ATTRS if not gold[a]) or "нет"
+    never = ", ".join(a for a in ATTRS if not gold[a] and not (res_name and a == "разрешение")) or "нет"
+    if res_name and gold["разрешение"]:
+        name_rule = f"\nРазрешение назови и словом «{res_name}», и цифрами, как указано выше.\n"
+    elif res_name:
+        name_rule = (f"\nРазрешение назови только словом «{res_name}» (например, «{res_name}-матрица» или «картинка в {res_name}»). "
+                     "Цифрами разрешение не пиши нигде: ни «1920x1080», ни «1080p», ни «2560 на 1440».\n")
+    else:
+        name_rule = ""
     examples = "\n\n".join(f"Пример {i + 1}:\n{t}" for i, t in enumerate(style))
     return f"""Напиши описание монитора для карточки товара интернет-магазина электроники, по-русски.
 Бренд: {brand}. Название модели придумай сам (в стиле артикулов, например «27G2» или «XG273QZ»).
@@ -102,7 +117,7 @@ def make_prompt(gold, fmt, style, brand, start, length):
 
 В тексте обязательно назови эти характеристики, именно в такой записи:
 {must}
-
+{name_rule}
 Эти характеристики не называй совсем (ни числом, ни словом, ни намёком): {never}.
 Каждую обязательную характеристику называй с одним и тем же значением, без противоречий.
 
@@ -121,7 +136,7 @@ def ask_sonnet(client, prompt):
     return "".join(b.text for b in r.content if b.type == "text").strip()
 
 def ask_haiku(client, prompt):
-    r = client.messages.create(model="claude-haiku-5-5", max_tokens=2000, thinking={"type": "disabled"},
+    r = client.messages.create(model="claude-haiku-4-5", max_tokens=2000, thinking={"type": "disabled"},
                                messages=[{"role": "user", "content": prompt}])
     print("токены: вход", r.usage.input_tokens, "выход", r.usage.output_tokens)
     return "".join(b.text for b in r.content if b.type == "text").strip()
@@ -158,25 +173,39 @@ def main(name, n, seed):
     calls = 0
     spent = 0     # секунд на запросы к API
     attempt = 0   # номер попытки для текущей записи: после брака параметры другие
+    names = name.startswith("names") or "_names" in name
     while done < n:
         rng = make_rng(seed, done, attempt)
         gold = make_gold(rng, pool, p)
+        res_name = None
+        if names:            # разрешение всегда названо словом; в половине случаев без цифр
+            res = rng.choice(sorted(RES_NAMES))
+            res_name = rng.choice(RES_NAMES[res])
+            gold["разрешение"] = None if rng.random() < P_NAME_ONLY else res
         fmt = {a: make_format(rng, a, v) for a, v in gold.items() if v}
         style = rng.sample(real, N_STYLE)
         length = min(max(50 * round(len(rng.choice(real)) / 50), 250), 1300)   # длина как у случайного реального описания
         t0 = time.time()
-        text = ask(client, make_prompt(gold, fmt, style, rng.choice(brands), rng.choice(STARTS), length))
+        text = ask(client, make_prompt(gold, fmt, style, rng.choice(brands), rng.choice(STARTS), length, res_name))
         sec = time.time() - t0
         spent += sec
         calls += 1
         reason = check(text, gold) or ("скопирована фраза из образца" if any(grams(text) & grams(s) for s in style) else "")
+        if names and not reason:
+            if res_name.lower() not in text.lower():
+                reason = f"нет названия разрешения «{res_name}»"
+            elif gold["разрешение"] is None and re.search(r"\b(?:720|1080|1440|2160)\s*[pр]\b", text.lower()):
+                reason = "разрешение цифрами вида 1080p при эталоне null"
         if reason:
             bad += 1
             attempt += 1
             print("отбраковано:", bad, "| принято:", done, "|", f"{sec:.1f} с |", reason)
             continue
         with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"description": text, "gold": gold, "формат": fmt}, ensure_ascii=False) + "\n")
+            rec = {"description": text, "gold": gold, "формат": fmt}
+            if names:
+                rec["название_разрешения"] = res_name
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         done += 1
         attempt = 0
         print(done, "/", n, f"| {sec:.1f} с")

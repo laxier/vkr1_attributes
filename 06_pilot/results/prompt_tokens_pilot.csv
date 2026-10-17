@@ -1,0 +1,17 @@
+model,mode,n,токенов_вход_среднее
+qwen35_9b,zero-shot,100,443.8
+qwen35_9b,few-shot,100,2058.8
+gemma4_e4b,zero-shot,100,437.5
+gemma4_e4b,few-shot,100,2056.5
+llama31_8b,zero-shot,100,491.1
+llama31_8b,few-shot,100,2275.1
+ministral3_8b,zero-shot,100,1015.3
+ministral3_8b,few-shot,100,2905.3
+phi4_mini,zero-shot,100,414.7
+phi4_mini,few-shot,100,1998.7
+gigachat31_10b,zero-shot,100,1416.4
+gigachat31_10b,few-shot,100,2829.4
+tlite21_8b,zero-shot,100,404.2
+tlite21_8b,few-shot,100,1891.2
+yandex5_lite_8b,zero-shot,100,368.0
+yandex5_lite_8b,few-shot,100,1681.0
