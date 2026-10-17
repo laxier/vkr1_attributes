@@ -14,3 +14,4 @@ data/
 *.docx
 04_synthetic/logs for train synthetic.txt
 env_colab.ipynb
+thesis/
