@@ -30,7 +30,7 @@ def res_dir(split):
 
 
 # norm() берём из ноутбука, чтобы метрики совпадали с summary.csv
-nb = json.load(open(f"{HERE}/05_run_model.ipynb", encoding="utf-8"))
+nb = json.load(open(f"{HERE}/07_run_model.ipynb", encoding="utf-8"))
 code = ["".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"]
 exec([c for c in code if "def parse(raw)" in c][0])
 
